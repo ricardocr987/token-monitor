@@ -67,7 +67,9 @@ export class Fetcher {
       const transactions = rawTransactions.filter((tx): tx is ParsedTransactionWithMeta => tx !== null);
       if (transactions.length === 0) continue;
 
-      const result = await batchProcessor(transactions);
+      const result = await this.db.transaction(() => {
+        return batchProcessor(transactions);
+      });
 
       // note: needed for owner or mint from history
       if (result) return result;

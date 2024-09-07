@@ -26,12 +26,16 @@ export interface TokenAccountInfo {
     owner: string;
 }
 
-export interface TokenMovementInfo {
-    type: string;
-    info: any;
-    signers: string[];
+export interface Event {
     signature: string;
-}
+    type: 'transfer' | 'mint' | 'burn' | 'initAccount';
+    signers: string[];
+    mint: string;
+    amount?: string;
+    source?: string;
+    destination?: string;
+    owner?: string;
+  }
 
 export interface TokenAccount {
     address: string;

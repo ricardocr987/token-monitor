@@ -128,11 +128,14 @@ export class Parser {
         if (mint !== config.TOKEN) return;
 
         const tokenAccount = { address, mint: config.TOKEN, owner };
-        if (!await this.db.tokenAccountExists(address)) {
-            await this.db.saveTokenAccount({...tokenAccount, balance: '0'});
+        const dbTokenAccount = this.db.getTokenAccount(address);
+        if (!dbTokenAccount) {
+            this.db.saveTokenAccount({...tokenAccount, balance: '0'});
+        } else {
+            this.db.saveTokenAccount({...tokenAccount, balance: dbTokenAccount.balance});
         }
 
-        await this.db.saveEvent({
+        this.db.saveEvent({
             signature,
             type: 'initAccount',
             signers,
@@ -145,16 +148,14 @@ export class Parser {
         if (mint !== config.TOKEN) return;
 
         const amountBN = new BN(amount);
-        await Promise.all([
-            this.updateBalances(source, amountBN.neg(), destination, amountBN),
-            this.db.saveEvent({
-                signature,
-                type: 'transfer',
-                signers,
-                ...info,
-                amount: bnToHex(amountBN),
-            })
-        ]);
+        this.updateBalances(source, amountBN.neg(), destination, amountBN);
+        this.db.saveEvent({
+            signature,
+            type: 'transfer',
+            signers,
+            ...info,
+            amount: bnToHex(amountBN),
+        });
     }
 
     private async handleMint(info: any, signers: string[], signature: string): Promise<void> {
@@ -162,18 +163,16 @@ export class Parser {
         if (mint !== config.TOKEN) return;
 
         const amountBN = new BN(amount);
-        await Promise.all([
-            this.updateBalances(null, new BN(0), destination, amountBN),
-            this.updateSupply(mint, amountBN),
-            this.db.saveEvent({
-                signature,
-                type: 'mint',
-                destination,
-                mint,
-                amount: bnToHex(amountBN),
-                signers,
-            })
-        ]);
+        this.updateBalances(null, new BN(0), destination, amountBN);
+        this.updateSupply(mint, amountBN);
+        this.db.saveEvent({
+            signature,
+            type: 'mint',
+            destination,
+            mint,
+            amount: bnToHex(amountBN),
+            signers,
+        });
     }
 
     private async handleBurn(info: any, signers: string[], signature: string): Promise<void> {
@@ -181,53 +180,51 @@ export class Parser {
         if (mint !== config.TOKEN) return;
 
         const amountBN = new BN(amount);
-        await Promise.all([
-            this.updateBalances(source, amountBN.neg(), null, new BN(0)),
-            this.updateSupply(mint, amountBN.neg()),
-            this.db.saveEvent({
-                signature,
-                type: 'burn',
-                source,
-                mint,
-                amount: bnToHex(amountBN),
-                signers,
-            })
-        ]);
+        this.updateBalances(source, amountBN.neg(), null, new BN(0));
+        this.updateSupply(mint, amountBN.neg());
+        this.db.saveEvent({
+            signature,
+            type: 'burn',
+            source,
+            mint,
+            amount: bnToHex(amountBN),
+            signers,
+        });
     }
 
     private async updateBalances(fromAddress: string | null, fromAmount: BN, toAddress: string | null, toAmount: BN): Promise<void> {
         if (fromAddress) {
-            const fromBalance = await this.getBalance(fromAddress);
+            const fromBalance = this.getBalance(fromAddress);
             const newFromBalance = fromBalance.add(fromAmount);
-            await this.db.updateBalance(fromAddress, bnToHex(newFromBalance));
+            this.db.updateBalance(fromAddress, bnToHex(newFromBalance));
         }
-
+    
         if (toAddress) {
-            const toBalance = await this.getBalance(toAddress);
+            const toBalance = this.getBalance(toAddress);
             const newToBalance = toBalance.add(toAmount);
-            await this.db.updateBalance(toAddress, bnToHex(newToBalance));
+            this.db.updateBalance(toAddress, bnToHex(newToBalance));
         }
     }
 
     private async updateSupply(mintAddress: string, amount: BN): Promise<void> {
-        const currentSupply = await this.getSupply(mintAddress);
+        const currentSupply = this.getSupply(mintAddress);
         const newSupply = currentSupply.add(amount);
-        await this.db.updateTokenSupply(mintAddress, bnToHex(newSupply));
+        this.db.updateTokenSupply(mintAddress, bnToHex(newSupply));
     }
 
     private async getMint(addresses: string[]): Promise<string> {
-        const mint = await this.db.mintFromAccounts(addresses);
+        const mint = this.db.getMintFromAccounts(addresses);
         return mint ? mint : await this.fetcher.mintFromHistory(addresses)
     }
 
-    private async getBalance(address: string): Promise<BN> {
-        const tokenAccount = await this.db.getTokenAccount(address);
+    private getBalance(address: string): BN {
+        const tokenAccount = this.db.getTokenAccount(address);
         const hexBalance = tokenAccount?.balance;
         return hexBalance ? hexToBN(hexBalance) : new BN(0);
     }
-
-    private async getSupply(mintAddress: string): Promise<BN> {
-        const hexSupply = await this.db.getTokenSupply(mintAddress);
+    
+    private getSupply(mintAddress: string): BN {
+        const hexSupply = this.db.getTokenSupply(mintAddress);
         return hexSupply ? hexToBN(hexSupply) : new BN(0);
     }
 }

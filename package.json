@@ -12,11 +12,13 @@
     "@solana/spl-token": "^0.4.8",
     "@solana/web3.js": "^1.95.3",
     "@types/bs58": "^4.0.4",
+    "@types/pako": "^2.0.3",
     "bs58": "^6.0.0",
     "elysia": "^1.1.11",
     "firebase-admin": "^12.3.1",
     "i": "^0.3.7",
-    "ky": "^1.7.1"
+    "ky": "^1.7.1",
+    "pako": "^2.1.0"
   },
   "devDependencies": {
     "bun-types": "latest"
